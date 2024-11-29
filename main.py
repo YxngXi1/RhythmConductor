@@ -65,15 +65,6 @@ def draw_shrinking_circle(frame, start_time, duration=2, start_radius=200, end_r
         return False  # Indicate that the shrinking is complete
     return True
 
-def draw_moving_rectangle(frame, start_time, duration=1, start_pos=(250, 900), end_pos=(250, 200)):
-    """Draw a rectangle moving from start_pos to end_pos over a specified duration."""
-    elapsed_time = time.time() - start_time
-    if elapsed_time <= duration:
-        y_pos = int(start_pos[1] - (start_pos[1] - end_pos[1]) * (elapsed_time / duration))
-        cv2.rectangle(frame, (start_pos[0] - 50, y_pos), (start_pos[0] + 50, y_pos + 100), (0, 255, 0), -1)
-    else:
-        cv2.rectangle(frame, (start_pos[0] - 50, end_pos[1]), (start_pos[0] + 50, end_pos[1] + 100), (0, 255, 0), -1)
-
 def game1(tracker):
     cap = cv2.VideoCapture(0)
     print('circle time')
