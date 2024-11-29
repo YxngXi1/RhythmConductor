@@ -55,12 +55,22 @@ def is_line_near_circle(x1, y1, x2, y2, circle_x, circle_y, radius):
 
     return distance < radius
 
+def draw_shrinking_circle(frame, start_time, duration=2, start_radius=200, end_radius=50):
+    """Draw a shrinking circle at (100, 100) over a specified duration."""
+    elapsed_time = time.time() - start_time
+    if elapsed_time <= duration:
+        radius = int(start_radius - (start_radius - end_radius) * (elapsed_time / duration))
+        cv2.circle(frame, (100, 100), radius, (0, 0, 255), -1)  # Red color in BGR
+    else:
+        return False  # Indicate that the shrinking is complete
+    return True
+
 def game1(tracker):
     cap = cv2.VideoCapture(0)
     print('circle time')
 
     coordinates = [(1324-300, 151), (1651-300, 800),  (1324-300, 800)]
-    sequence = [0,2,1]  # Updated sequence
+    sequence = [0, 2, 1]  # Updated sequence
     sequence_index = 0
     last_time = time.time()
     shrinking_start_time = None
@@ -68,6 +78,9 @@ def game1(tracker):
     circle_visible = True
     game_started = False  # Flag to check if the game has started
     score = 0  # Initialize score
+    cycle_count = 0  # Counter for the cycles
+    large_circle_start_time = None  # Start time for the large circle
+    large_circle_shown = False  # Flag to ensure the large circle is shown only once
 
     # Initialize pygame mixer
     pygame.mixer.init()
@@ -117,7 +130,17 @@ def game1(tracker):
                 shrinking_start_time = current_time  # Reset shrinking start time
                 shrinking_radius = 100  # Reset shrinking radius
                 circle_visible = True  # Make the circle visible again if it was destroyed
-            
+                cycle_count += 1  # Increment the cycle count
+
+                # Check if it's time to show the large circle
+                if cycle_count == 12:
+                    large_circle_start_time = current_time
+                    large_circle_shown = True
+
+                # Stop the game after two cycles
+                if cycle_count >= 24:
+                    break
+
             current_index = sequence[sequence_index]
             x_coordinate, y_coordinate = coordinates[current_index]
             center_coordinates = (x_coordinate, y_coordinate)
@@ -158,6 +181,11 @@ def game1(tracker):
                             score += 1  # Increment score
                             print(f"points! {score}")
                             break  # Exit the loop once a landmark is near the circle
+
+            # Draw the large shrinking circle if it's time
+            if large_circle_start_time is not None:
+                if not draw_shrinking_circle(frame, large_circle_start_time):
+                    large_circle_start_time = None  # Reset the start time once shrinking is complete
         
         # Display the score in the top left corner
         font = cv2.FONT_HERSHEY_SIMPLEX
