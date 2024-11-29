@@ -2,6 +2,8 @@ import cv2
 import time
 from modules.hand_tracker import HandTracker
 import math
+from playsound import playsound 
+import pygame
 
 # Constants
 SCREEN_WIDTH = 1470
@@ -58,13 +60,17 @@ def game1(tracker):
     print('circle time')
 
     coordinates = [(1324-300, 151), (1651-300, 800),  (1324-300, 800)]
-    sequence = [0, 1, 2, 1]  # Sequence for consistent pace
+    sequence = [0,2,1]  # Updated sequence
     sequence_index = 0
     last_time = time.time()
     shrinking_start_time = None
     shrinking_radius = 100  # Initial radius of the shrinking circle
     circle_visible = True
     game_started = False  # Flag to check if the game has started
+    score = 0  # Initialize score
+
+    # Initialize pygame mixer
+    pygame.mixer.init()
 
     while True:
         # OpenCV Frame
@@ -78,6 +84,13 @@ def game1(tracker):
         frame = tracker.draw_hands(frame, results)
         
         if not game_started:
+            # Draw the initial circle on the frame
+            initial_circle_coordinates = coordinates[0]
+            initial_circle_radius = 50
+            initial_circle_color = (0, 255, 0)  # Green color in BGR
+            initial_circle_thickness = -1  # Fill the circle
+            cv2.circle(frame, initial_circle_coordinates, initial_circle_radius, initial_circle_color, initial_circle_thickness)
+            
             # Check for initial hit to start the game
             if results.multi_hand_landmarks:
                 for hand_landmarks in results.multi_hand_landmarks:
@@ -86,9 +99,11 @@ def game1(tracker):
                         y1 = int(hand_landmarks.landmark[i].y * frame.shape[0])
                         x2 = int(hand_landmarks.landmark[i + 1].x * frame.shape[1])
                         y2 = int(hand_landmarks.landmark[i + 1].y * frame.shape[0])
-
+        
                         if is_finger_near_circle(x1, y1, coordinates[0][0], coordinates[0][1], 50):
                             print("Initial hit detected, starting game")
+                            pygame.mixer.music.load('audio.mp3')
+                            pygame.mixer.music.play()
                             game_started = True
                             break
                     if game_started:
@@ -96,7 +111,7 @@ def game1(tracker):
         else:
             # Update circle position every 1/54 second
             current_time = time.time()
-            if current_time - last_time >= 2/5:
+            if current_time - last_time >= 400/1000:
                 sequence_index = (sequence_index + 1) % len(sequence)
                 last_time = current_time
                 shrinking_start_time = current_time  # Reset shrinking start time
@@ -117,8 +132,8 @@ def game1(tracker):
                 # Calculate the shrinking circle's radius
                 if shrinking_start_time is not None:
                     elapsed_time = current_time - shrinking_start_time
-                    if elapsed_time <= 2/5:
-                        shrinking_radius = int(100 - (50 * (elapsed_time / (2/5))))
+                    if elapsed_time <= 300/1000:
+                        shrinking_radius = int(100 - (50 * (elapsed_time / (400/1000))))
                     else:
                         shrinking_radius = 50  # Ensure it doesn't shrink below the main circle's radius
 
@@ -138,10 +153,19 @@ def game1(tracker):
 
                         if is_finger_near_circle(x1, y1, x_coordinate, y_coordinate, radius) or \
                            is_line_near_circle(x1, y1, x2, y2, x_coordinate, y_coordinate, radius):
-                            print("Hand near circle, moving circle")
+                            print("points!")
                             circle_visible = False  # Make the circle disappear
+                            score += 1  # Increment score
+                            print(f"points! {score}")
                             break  # Exit the loop once a landmark is near the circle
         
+        # Display the score in the top left corner
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 1
+        font_color = (255, 255, 255)  # White color
+        font_thickness = 2
+        cv2.putText(frame, f'Score: {score}', (10, 30), font, font_scale, font_color, font_thickness)
+
         # Show OpenCV frame
         cv2.imshow("Game Frame", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -149,6 +173,7 @@ def game1(tracker):
     
     cap.release()
     cv2.destroyAllWindows()
+    pygame.mixer.quit()
 
 def main():
     # Initialize
