@@ -60,16 +60,25 @@ def draw_shrinking_circle(frame, start_time, duration=2, start_radius=200, end_r
     elapsed_time = time.time() - start_time
     if elapsed_time <= duration:
         radius = int(start_radius - (start_radius - end_radius) * (elapsed_time / duration))
-        cv2.circle(frame, (100, 100), radius, (0, 0, 255), -1)  # Red color in BGR
+        cv2.circle(frame, (250, 500), radius, (0, 0, 255), -1)  # Red color in BGR
     else:
         return False  # Indicate that the shrinking is complete
     return True
+
+def draw_moving_rectangle(frame, start_time, duration=1, start_pos=(250, 900), end_pos=(250, 200)):
+    """Draw a rectangle moving from start_pos to end_pos over a specified duration."""
+    elapsed_time = time.time() - start_time
+    if elapsed_time <= duration:
+        y_pos = int(start_pos[1] - (start_pos[1] - end_pos[1]) * (elapsed_time / duration))
+        cv2.rectangle(frame, (start_pos[0] - 50, y_pos), (start_pos[0] + 50, y_pos + 100), (0, 255, 0), -1)
+    else:
+        cv2.rectangle(frame, (start_pos[0] - 50, end_pos[1]), (start_pos[0] + 50, end_pos[1] + 100), (0, 255, 0), -1)
 
 def game1(tracker):
     cap = cv2.VideoCapture(0)
     print('circle time')
 
-    coordinates = [(1324-300, 151), (1651-300, 800),  (1324-300, 800)]
+    coordinates = [(1324, 151), (1651, 800),  (1324, 800)]
     sequence = [0, 2, 1]  # Updated sequence
     sequence_index = 0
     last_time = time.time()
@@ -80,7 +89,8 @@ def game1(tracker):
     score = 0  # Initialize score
     cycle_count = 0  # Counter for the cycles
     large_circle_start_time = None  # Start time for the large circle
-    large_circle_shown = False  # Flag to ensure the large circle is shown only once
+    shrinking_circle_count = 0  # Counter for the shrinking circles
+    rectangle_start_times = []  # Start times for the moving rectangles
 
     # Initialize pygame mixer
     pygame.mixer.init()
@@ -118,11 +128,11 @@ def game1(tracker):
                             pygame.mixer.music.load('audio.mp3')
                             pygame.mixer.music.play()
                             game_started = True
+                            rectangle_start_times = [time.time() + 25, time.time() + 26, time.time() + 27]  # Set the start times for the rectangles
                             break
                     if game_started:
                         break
         else:
-            # Update circle position every 1/54 second
             current_time = time.time()
             if current_time - last_time >= 400/1000:
                 sequence_index = (sequence_index + 1) % len(sequence)
@@ -133,13 +143,8 @@ def game1(tracker):
                 cycle_count += 1  # Increment the cycle count
 
                 # Check if it's time to show the large circle
-                if cycle_count == 12:
+                if cycle_count % 12 == 0:
                     large_circle_start_time = current_time
-                    large_circle_shown = True
-
-                # Stop the game after two cycles
-                if cycle_count >= 24:
-                    break
 
             current_index = sequence[sequence_index]
             x_coordinate, y_coordinate = coordinates[current_index]
@@ -182,10 +187,16 @@ def game1(tracker):
                             print(f"points! {score}")
                             break  # Exit the loop once a landmark is near the circle
 
-            # Draw the large shrinking circle if it's time
-            if large_circle_start_time is not None:
+            # Draw the large shrinking circle if it's time and the count is less than 2
+            if large_circle_start_time is not None and shrinking_circle_count < 1:
                 if not draw_shrinking_circle(frame, large_circle_start_time):
                     large_circle_start_time = None  # Reset the start time once shrinking is complete
+                    shrinking_circle_count += 1  # Increment the shrinking circle count
+
+            # Draw the moving rectangles if it's time
+            for start_time in rectangle_start_times:
+                if current_time >= start_time:
+                    draw_moving_rectangle(frame, start_time)
         
         # Display the score in the top left corner
         font = cv2.FONT_HERSHEY_SIMPLEX
